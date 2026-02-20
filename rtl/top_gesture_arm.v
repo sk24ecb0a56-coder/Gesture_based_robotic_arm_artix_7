@@ -59,9 +59,16 @@ module top_gesture_arm #(
     assign cam_reset = rst_n;
     assign cam_pwdn  = 1'b0;
     
-    // SCCB/I2C lines (camera pre-configured externally)
-    assign cam_sioc = 1'b1;
-    assign cam_siod = 1'bz;
+    // SCCB/I2C initialization controller
+    wire sccb_init_done;
+
+    ov7670_sccb_init u_sccb_init (
+        .clk(clk_100mhz),
+        .rst_n(rst_n),
+        .sioc(cam_sioc),
+        .siod(cam_siod),
+        .init_done(sccb_init_done)
+    );
 
     // ========================================================================
     // Camera Interface
