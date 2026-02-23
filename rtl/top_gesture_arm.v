@@ -1,3 +1,25 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 22.02.2026 11:30:22
+// Design Name: 
+// Module Name: top_gesture_arm
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
 // top_gesture_arm.v
 // Top-level integration for gesture-based robotic arm controller
 // Connects all processing stages in the pipeline
@@ -75,24 +97,24 @@ module top_gesture_arm #(
     // ========================================================================
     
     wire [15:0] cam_pixel_data;
-    wire [ADDR_WIDTH-1:0] cam_write_addr;
+   wire [9:0] cam_write_col;
+wire [9:0] cam_write_row;
     wire        cam_write_enable;
     wire        cam_frame_done;
     
-    cam_ov7670_interface #(
-        .ADDR_WIDTH(ADDR_WIDTH)
-    ) u_cam_interface (
-        .sys_clk(clk_100mhz),
-        .rst_n(rst_n),
-        .cam_pclk(cam_pclk),
-        .cam_vsync(cam_vsync),
-        .cam_href(cam_href),
-        .cam_data(cam_data),
-        .pixel_data(cam_pixel_data),
-        .write_addr(cam_write_addr),
-        .write_enable(cam_write_enable),
-        .frame_done(cam_frame_done)
-    );
+   cam_ov7670_interface u_cam_interface (
+    .sys_clk(clk_100mhz),
+    .rst_n(rst_n),
+    .cam_pclk(cam_pclk),
+    .cam_vsync(cam_vsync),
+    .cam_href(cam_href),
+    .cam_data(cam_data),
+    .pixel_data(cam_pixel_data),
+    .write_col(cam_write_col),
+    .write_row(cam_write_row),
+    .write_enable(cam_write_enable),
+    .frame_done(cam_frame_done)
+);
 
     // ========================================================================
     // Color Space Conversion: RGB565 -> YCbCr
@@ -194,47 +216,41 @@ module top_gesture_arm #(
     // Frame Buffer (Double-buffered)
     // ========================================================================
     
-    wire [ADDR_WIDTH-1:0] fb_read_addr;
+  
     wire [15:0] fb_rgb;
     wire        fb_mask;
     
-    frame_buffer_controller #(
-        .H_ACTIVE(H_ACTIVE),
-        .V_ACTIVE(V_ACTIVE),
-        .ADDR_WIDTH(ADDR_WIDTH)
-    ) u_frame_buffer (
-        .clk(clk_100mhz),
-        .rst_n(rst_n),
-        .write_addr(cam_write_addr),
-        .write_rgb(cam_pixel_data),
-        .write_mask(skin_mask_filtered),
-        .write_enable(cam_write_enable),
-        .frame_done(cam_frame_done),
-        .read_addr(fb_read_addr),
-        .read_rgb(fb_rgb),
-        .read_mask(fb_mask)
-    );
+   frame_buffer_controller u_frame_buffer (
+    .clk(clk_100mhz),
+    .rst_n(rst_n),
 
+    .write_col(cam_write_col),
+    .write_row(cam_write_row),
+    .write_rgb(cam_pixel_data),
+    .write_mask(skin_mask_filtered),
+    .write_enable(cam_write_enable),
+    .frame_done(cam_frame_done),
+
+    .read_col(vga_x),
+    .read_row(vga_y),
+    .read_rgb(fb_rgb),
+    .read_mask(fb_mask)
+);
     // ========================================================================
     // VGA Controller
-    // ========================================================================
-    
+    // ========================================================================       
     wire [9:0] vga_x, vga_y;
     wire       vga_active;
     
-    vga_controller #(
-        .H_ACTIVE(H_ACTIVE),
-        .V_ACTIVE(V_ACTIVE)
-    ) u_vga_controller (
-        .clk_25mhz(clk_25mhz),
-        .rst_n(rst_n),
-        .hsync(vga_hsync),
-        .vsync(vga_vsync),
-        .active(vga_active),
-        .x_pos(vga_x),
-        .y_pos(vga_y),
-        .read_addr(fb_read_addr)
-    );
+    vga_controller u_vga_controller (
+    .clk_25mhz(clk_25mhz),
+    .rst_n(rst_n),
+    .hsync(vga_hsync),
+    .vsync(vga_vsync),
+    .active(vga_active),
+    .x_pos(vga_x),
+    .y_pos(vga_y)
+);
 
     // ========================================================================
     // VGA Overlay Display
