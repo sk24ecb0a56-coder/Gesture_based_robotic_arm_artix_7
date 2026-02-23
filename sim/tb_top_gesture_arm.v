@@ -1,3 +1,24 @@
+`timescale 1ns / 1ps
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 22.02.2026 11:39:10
+// Design Name: 
+// Module Name: tb_top_gesture_arm
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
 // tb_top_gesture_arm.v
 // Testbench for gesture-based robotic arm controller
 // Simulates camera signals and monitors outputs
@@ -8,7 +29,7 @@ module tb_top_gesture_arm;
 
     // Clock and reset
     reg clk_100mhz;
-    reg rst_n;
+    reg rst_n = 0;
     
     // Camera signals
     reg       cam_pclk;
@@ -17,7 +38,7 @@ module tb_top_gesture_arm;
     reg [7:0] cam_data;
     wire      cam_xclk;
     wire      cam_sioc;
-    wire      cam_siod;
+    tri1 cam_siod;   // Pull-up enabled
     wire      cam_reset;
     wire      cam_pwdn;
     
@@ -82,19 +103,12 @@ module tb_top_gesture_arm;
         rst_n      = 0;
         cam_vsync  = 0;
         cam_href   = 0;
-        cam_data   = 8'h00;
-        
-        // Generate VCD waveform dump
-        $dumpfile("tb_top_gesture_arm.vcd");
-        $dumpvars(0, tb_top_gesture_arm);
-        
+        cam_data   = 8'h00;    
         // Reset sequence
+      repeat (20) @(posedge clk_100mhz);
+      rst_n = 1;
         #100;
-        rst_n = 1;
-        #100;
-        
-        $display("Starting testbench simulation...");
-        
+
         // Simulate camera frame capture
         repeat (3) begin
             send_camera_frame();
