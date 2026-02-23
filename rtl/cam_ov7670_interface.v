@@ -1,26 +1,31 @@
-// cam_ov7670_interface.v
-// OV7670 camera interface with clock domain crossing
-// 2-FF synchronizers for all camera signals
-// RGB565 output format
+`timescale 1ns / 1ps
 
-module cam_ov7670_interface #(
-    parameter ADDR_WIDTH = 19          // 640*480 = 307200 pixels
-)(
-    input  wire        sys_clk,        // System clock (100 MHz)
+// cam_ov7670_interface.v
+// OV7670 camera interface
+// Outputs write_row and write_col instead of linear address
+
+module cam_ov7670_interface(
+
+    input  wire        sys_clk,
     input  wire        rst_n,
+
     // Camera inputs
-    input  wire        cam_pclk,       // Camera pixel clock
-    input  wire        cam_vsync,      // Vertical sync
-    input  wire        cam_href,       // Horizontal reference
-    input  wire [7:0]  cam_data,       // Camera data
+    input  wire        cam_pclk,
+    input  wire        cam_vsync,
+    input  wire        cam_href,
+    input  wire [7:0]  cam_data,
+
     // Outputs
-    output reg  [15:0] pixel_data,     // RGB565 pixel output
-    output reg  [ADDR_WIDTH-1:0] write_addr,
+    output reg  [15:0] pixel_data,
+    output reg  [9:0]  write_col,   // 0..639
+    output reg  [9:0]  write_row,   // 0..479
     output reg         write_enable,
     output reg         frame_done
 );
 
-    // 2-FF synchronizers for clock domain crossing
+    // ================================================================
+    // Synchronizers (CDC)
+    // ================================================================
     reg [1:0] vsync_sync, href_sync, pclk_sync;
     reg [15:0] data_sync;
 
@@ -43,7 +48,9 @@ module cam_ov7670_interface #(
     wire pclk  = pclk_sync[1];
     wire [7:0] data = data_sync[7:0];
 
-    // Edge detection for pclk
+    // ================================================================
+    // PCLK Rising Edge Detection
+    // ================================================================
     reg pclk_prev;
     wire pclk_rising = pclk && !pclk_prev;
 
@@ -54,67 +61,100 @@ module cam_ov7670_interface #(
             pclk_prev <= pclk;
     end
 
-    // State machine
+    // ================================================================
+    // State Machine
+    // ================================================================
     localparam S_IDLE    = 2'd0;
     localparam S_CAPTURE = 2'd1;
 
     reg [1:0] state;
-    reg       byte_toggle;     // 0=MSB, 1=LSB
+    reg       byte_toggle;
     reg [7:0] msb_byte;
     reg       vsync_prev;
+
+    // Row/Column counters
+    reg [9:0] col_counter;
+    reg [9:0] row_counter;
 
     always @(posedge sys_clk) begin
         if (!rst_n) begin
             state        <= S_IDLE;
-            write_addr   <= 0;
             write_enable <= 1'b0;
             pixel_data   <= 16'd0;
             byte_toggle  <= 1'b0;
             msb_byte     <= 8'd0;
             frame_done   <= 1'b0;
             vsync_prev   <= 1'b0;
+            col_counter  <= 10'd0;
+            row_counter  <= 10'd0;
+            write_col    <= 10'd0;
+            write_row    <= 10'd0;
         end else begin
+
             vsync_prev   <= vsync;
             write_enable <= 1'b0;
             frame_done   <= 1'b0;
 
             case (state)
+
+                // ----------------------------------------------------
+                // WAIT FOR FRAME START
+                // ----------------------------------------------------
                 S_IDLE: begin
-                    // Frame starts on VSYNC falling edge
                     if (vsync_prev && !vsync) begin
-                        state      <= S_CAPTURE;
-                        write_addr <= 0;
+                        state       <= S_CAPTURE;
+                        col_counter <= 10'd0;
+                        row_counter <= 10'd0;
                         byte_toggle <= 1'b0;
                     end
                 end
 
+                // ----------------------------------------------------
+                // CAPTURE FRAME
+                // ----------------------------------------------------
                 S_CAPTURE: begin
-                    // Frame done on VSYNC rising edge
+
+                    // Frame end
                     if (!vsync_prev && vsync) begin
                         state      <= S_IDLE;
                         frame_done <= 1'b1;
                     end
-                    // Reset byte alignment when HREF is low
+
+                    // Line end
                     else if (!href) begin
                         byte_toggle <= 1'b0;
                     end
-                    // Capture data on pclk rising edge during HREF
+
+                    // Valid pixel byte
                     else if (href && pclk_rising) begin
+
                         if (!byte_toggle) begin
-                            // First byte (MSB)
                             msb_byte    <= data;
                             byte_toggle <= 1'b1;
                         end else begin
-                            // Second byte (LSB) - complete pixel
+                            // Full RGB565 pixel
                             pixel_data   <= {msb_byte, data};
                             write_enable <= 1'b1;
-                            write_addr   <= write_addr + 1;
-                            byte_toggle  <= 1'b0;
+
+                            // Output current position
+                            write_col <= col_counter;
+                            write_row <= row_counter;
+
+                            // Update column counter
+                            if (col_counter == 10'd639) begin
+                                col_counter <= 10'd0;
+                                row_counter <= row_counter + 1;
+                            end else begin
+                                col_counter <= col_counter + 1;
+                            end
+
+                            byte_toggle <= 1'b0;
                         end
                     end
                 end
 
                 default: state <= S_IDLE;
+
             endcase
         end
     end
