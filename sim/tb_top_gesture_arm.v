@@ -99,6 +99,8 @@ module tb_top_gesture_arm;
 
     // Test sequence
     initial begin
+        $dumpfile("tb_top.vcd");
+        $dumpvars(0, tb_top_gesture_arm);
         // Initialize signals
         rst_n      = 0;
         cam_vsync  = 0;
@@ -110,7 +112,7 @@ module tb_top_gesture_arm;
         #100;
 
         // Simulate camera frame capture
-        repeat (3) begin
+        repeat (1) begin
             send_camera_frame();
         end
         
@@ -118,6 +120,8 @@ module tb_top_gesture_arm;
         #10000;
         $display("Finger count: %d", led_finger_count);
         $display("Hand detected: %b", led_hand_detect);
+        $display("Pipeline: cam_write_enable=%b ycbcr_valid=%b skin_mask_raw=%b skin_mask_filtered=%b",
+                 dut.cam_write_enable, dut.ycbcr_valid, dut.skin_mask_raw, dut.skin_mask_filtered);
         
         // Run for additional time to observe servo PWM
         #1000000;
@@ -182,6 +186,17 @@ module tb_top_gesture_arm;
         forever begin
             @(posedge servo_pwm_base);
             // Could measure pulse width here
+        end
+    end
+
+    // Monitor VGA sync status periodically
+    initial begin
+        forever begin
+            #100000;  // Every 100us
+            $display("[%t] VGA: hsync=%b vsync=%b active=%b r=%h g=%h b=%h | Fingers=%d Hand=%b",
+                     $time, vga_hsync, vga_vsync, dut.vga_active,
+                     vga_r, vga_g, vga_b,
+                     led_finger_count, led_hand_detect);
         end
     end
 

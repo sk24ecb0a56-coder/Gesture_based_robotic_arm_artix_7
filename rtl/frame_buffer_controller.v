@@ -99,7 +99,7 @@ module frame_buffer_controller #(
     wire [7:0] small_col = write_col[9:2];  // divide by 4
 
     wire [ADDR_WIDTH-1:0] write_addr_small =
-        small_row * H_SMALL + small_col;
+        ({small_row, 7'b0} + {2'b0, small_row, 5'b0}) + {7'b0, small_col};
 
     always @(posedge clk) begin
         if (write_enable && write_sample) begin
@@ -121,7 +121,7 @@ module frame_buffer_controller #(
     wire [7:0] read_small_col = read_col[9:2];
 
     wire [ADDR_WIDTH-1:0] read_addr_small =
-        read_small_row * H_SMALL + read_small_col;
+        ({read_small_row, 7'b0} + {2'b0, read_small_row, 5'b0}) + {7'b0, read_small_col};
 
     always @(posedge clk) begin
         if (!rst_n) begin
