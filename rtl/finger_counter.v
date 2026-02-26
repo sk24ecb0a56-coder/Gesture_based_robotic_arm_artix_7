@@ -23,42 +23,26 @@ module finger_counter #(
     reg [9:0] col_index;
     reg [18:0] total_skin_pixels;
 
-    // Phase 1: Accumulate histogram during frame
-    integer i;
-    always @(posedge clk) begin
-        if (!rst_n || frame_done) begin
-            for (i = 0; i < H_ACTIVE; i = i + 1) begin
-                col_histogram[i] <= 10'd0;
-            end
-            col_index         <= 0;
-            total_skin_pixels <= 0;
-        end else if (pixel_valid) begin
-            if (skin_pixel) begin
-                col_histogram[col_index] <= col_histogram[col_index] + 1;
-                total_skin_pixels        <= total_skin_pixels + 1;
-            end
-            
-            // Advance column (wraps at H_ACTIVE)
-            if (col_index == H_ACTIVE - 1)
-                col_index <= 0;
-            else
-                col_index <= col_index + 1;
-        end
-    end
+    // State machine states
+    localparam HIST_CLEAR = 2'd0;  // Sequential histogram clear
+    localparam HIST_ACCUM = 2'd1;  // Accumulate histogram
+    localparam HIST_SCAN  = 2'd2;  // Scan histogram for peaks
+    localparam HIST_DONE  = 2'd3;  // Output results
 
-    // Phase 2: Scan histogram and count peaks
-    localparam A_IDLE = 2'd0;
-    localparam A_SCAN = 2'd1;
-    localparam A_DONE = 2'd2;
+    reg [1:0]  hist_state;
+    reg [9:0]  clear_counter;
 
-    reg [1:0]  analyze_state;
+    // Scan/peak detection registers
     reg [9:0]  scan_col;
     reg [2:0]  peak_count;
     reg        prev_above_thresh;
 
     always @(posedge clk) begin
         if (!rst_n) begin
-            analyze_state     <= A_IDLE;
+            hist_state        <= HIST_CLEAR;
+            clear_counter     <= 0;
+            col_index         <= 0;
+            total_skin_pixels <= 0;
             scan_col          <= 0;
             peak_count        <= 0;
             prev_above_thresh <= 1'b0;
@@ -68,47 +52,63 @@ module finger_counter #(
         end else begin
             count_valid <= 1'b0;
 
-            case (analyze_state)
-                A_IDLE: begin
-                    if (frame_done) begin
-                        analyze_state     <= A_SCAN;
-                        scan_col          <= 0;
-                        peak_count        <= 0;
-                        prev_above_thresh <= 1'b0;
+            case (hist_state)
+                HIST_CLEAR: begin
+                    // Clear one histogram entry per clock cycle
+                    col_histogram[clear_counter] <= 10'd0;
+                    if (clear_counter == H_ACTIVE - 1) begin
+                        clear_counter     <= 0;
+                        col_index         <= 0;
+                        total_skin_pixels <= 0;
+                        hist_state        <= HIST_ACCUM;
+                    end else begin
+                        clear_counter <= clear_counter + 1;
                     end
                 end
 
-                A_SCAN: begin
+                HIST_ACCUM: begin
+                    if (frame_done) begin
+                        scan_col          <= 0;
+                        peak_count        <= 0;
+                        prev_above_thresh <= 1'b0;
+                        hist_state        <= HIST_SCAN;
+                    end else if (pixel_valid) begin
+                        if (skin_pixel) begin
+                            col_histogram[col_index] <= col_histogram[col_index] + 1;
+                            total_skin_pixels        <= total_skin_pixels + 1;
+                        end
+
+                        if (col_index == H_ACTIVE - 1)
+                            col_index <= 0;
+                        else
+                            col_index <= col_index + 1;
+                    end
+                end
+
+                HIST_SCAN: begin
                     if (scan_col < H_ACTIVE) begin
-                        // Check if current column is above threshold
                         if (col_histogram[scan_col] >= COL_THRESH) begin
-                            // Rising transition = new finger detected
-                            if (!prev_above_thresh && peak_count < 5) begin
+                            if (!prev_above_thresh && peak_count < 5)
                                 peak_count <= peak_count + 1;
-                            end
                             prev_above_thresh <= 1'b1;
                         end else begin
                             prev_above_thresh <= 1'b0;
                         end
-                        
                         scan_col <= scan_col + 1;
                     end else begin
-                        analyze_state <= A_DONE;
+                        hist_state <= HIST_DONE;
                     end
                 end
 
-                A_DONE: begin
-                    // Check hand detection threshold
+                HIST_DONE: begin
                     hand_detected <= (total_skin_pixels >= HAND_THRESH);
-                    
-                    // Output final count
-                    finger_count <= peak_count;
-                    count_valid  <= 1'b1;
-                    
-                    analyze_state <= A_IDLE;
+                    finger_count  <= peak_count;
+                    count_valid   <= 1'b1;
+                    clear_counter <= 0;
+                    hist_state    <= HIST_CLEAR;
                 end
 
-                default: analyze_state <= A_IDLE;
+                default: hist_state <= HIST_CLEAR;
             endcase
         end
     end

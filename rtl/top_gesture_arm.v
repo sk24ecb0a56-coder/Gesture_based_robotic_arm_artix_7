@@ -213,6 +213,22 @@ wire [9:0] cam_write_row;
     );
 
     // ========================================================================
+    // VGA Controller
+    // ========================================================================       
+    wire [9:0] vga_x, vga_y;
+    wire       vga_active;
+    
+    vga_controller u_vga_controller (
+    .clk_25mhz(clk_25mhz),
+    .rst_n(rst_n),
+    .hsync(vga_hsync),
+    .vsync(vga_vsync),
+    .active(vga_active),
+    .x_pos(vga_x),
+    .y_pos(vga_y)
+);
+
+    // ========================================================================
     // Frame Buffer (Double-buffered)
     // ========================================================================
     
@@ -235,21 +251,6 @@ wire [9:0] cam_write_row;
     .read_row(vga_y),
     .read_rgb(fb_rgb),
     .read_mask(fb_mask)
-);
-    // ========================================================================
-    // VGA Controller
-    // ========================================================================       
-    wire [9:0] vga_x, vga_y;
-    wire       vga_active;
-    
-    vga_controller u_vga_controller (
-    .clk_25mhz(clk_25mhz),
-    .rst_n(rst_n),
-    .hsync(vga_hsync),
-    .vsync(vga_vsync),
-    .active(vga_active),
-    .x_pos(vga_x),
-    .y_pos(vga_y)
 );
 
     // ========================================================================

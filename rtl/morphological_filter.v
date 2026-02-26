@@ -16,8 +16,10 @@ module morphological_filter #(
 );
 
     // Line buffers (2 lines of 640 pixels each)
-    reg [H_ACTIVE-1:0] line_buf_0;
-    reg [H_ACTIVE-1:0] line_buf_1;
+    (* ram_style = "block" *)
+    reg line_buf_0 [0:H_ACTIVE-1];  // H_ACTIVE x 1-bit BRAM
+    (* ram_style = "block" *)
+    reg line_buf_1 [0:H_ACTIVE-1];  // H_ACTIVE x 1-bit BRAM
 
     // 3-pixel shift registers for each row
     reg [2:0] row_0_sr, row_1_sr, row_2_sr;
@@ -51,14 +53,11 @@ module morphological_filter #(
     // Line buffer management and shift register loading
     always @(posedge clk) begin
         if (!rst_n) begin
-            line_buf_0 <= 0;
-            line_buf_1 <= 0;
             row_0_sr   <= 3'd0;
             row_1_sr   <= 3'd0;
             row_2_sr   <= 3'd0;
         end else if (frame_done) begin
-            line_buf_0 <= 0;
-            line_buf_1 <= 0;
+            // Line buffers are overwritten each frame — no reset needed
             row_0_sr   <= 3'd0;
             row_1_sr   <= 3'd0;
             row_2_sr   <= 3'd0;
