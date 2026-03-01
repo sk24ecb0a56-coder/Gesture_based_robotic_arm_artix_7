@@ -97,6 +97,15 @@ module tb_top_gesture_arm;
         forever #20 cam_pclk = ~cam_pclk;
     end
 
+    // VGA frame monitor: count hsync and vsync pulses
+    integer hsync_count = 0;
+    integer vsync_count = 0;
+    always @(negedge vga_hsync) hsync_count = hsync_count + 1;
+    always @(negedge vga_vsync) begin
+        vsync_count = vsync_count + 1;
+        $display("[%t] VGA vsync pulse #%0d (hsync count so far: %0d)", $time, vsync_count, hsync_count);
+    end
+
     // Test sequence
     initial begin
         $dumpfile("tb_top.vcd");
@@ -109,7 +118,14 @@ module tb_top_gesture_arm;
         // Reset sequence
       repeat (20) @(posedge clk_100mhz);
       rst_n = 1;
-        #100;
+        // Wait at least 100 clock cycles after reset for clk_divider and SCCB to stabilize
+        repeat (200) @(posedge clk_100mhz);
+
+        // Check VGA sync signals are not X before sending frame
+        if (vga_hsync === 1'bx || vga_vsync === 1'bx)
+            $display("[WARN] VGA hsync/vsync still X after reset stabilization at time %t", $time);
+        else
+            $display("[OK] VGA hsync=%b vsync=%b are valid at time %t", vga_hsync, vga_vsync, $time);
 
         // Simulate camera frame capture
         repeat (1) begin
@@ -123,10 +139,11 @@ module tb_top_gesture_arm;
         $display("Pipeline: cam_write_enable=%b ycbcr_valid=%b skin_mask_raw=%b skin_mask_filtered=%b",
                  dut.cam_write_enable, dut.ycbcr_valid, dut.skin_mask_raw, dut.skin_mask_filtered);
         
-        // Run for additional time to observe servo PWM
-        #1000000;
+        // Run long enough for at least one full VGA frame (1/60s = 16.7ms = 16,700,000 ns)
+        #16700000;
         
-        $display("Testbench completed successfully");
+        $display("Testbench completed successfully at time %t", $time);
+        $display("Total hsync pulses: %0d, vsync pulses: %0d", hsync_count, vsync_count);
         $finish;
     end
 
@@ -169,12 +186,15 @@ module tb_top_gesture_arm;
                 
                 // HREF low for blanking
                 cam_href = 0;
+                if (row == 0 || row == 239 || row == 479)
+                    $display("[%t] Camera row %0d written to frame buffer", $time, row);
                 repeat (20) @(posedge cam_pclk);
             end
             
             // VSYNC rising edge - end of frame
             #1000;
             cam_vsync = 1;
+            $display("[%t] Camera frame transmission complete", $time);
             #400;
             cam_vsync = 0;
             #2000;
@@ -191,6 +211,8 @@ module tb_top_gesture_arm;
 
     // Monitor VGA sync status periodically
     initial begin
+        // Wait for simulation to stabilize before monitoring
+        repeat (200) @(posedge clk_100mhz);
         forever begin
             #100000;  // Every 100us
             $display("[%t] VGA: hsync=%b vsync=%b active=%b r=%h g=%h b=%h | Fingers=%d Hand=%b",
