@@ -73,10 +73,10 @@ set_property -dict { PACKAGE_PIN H16  IOSTANDARD LVCMOS33 } [get_ports {cam_data
 ##   Top row: JC1=K1, JC2=F6, JC3=J2, JC4=G6
 ## Comment these out if no robotic arm is connected
 ## ============================================================================
-#set_property -dict { PACKAGE_PIN K1   IOSTANDARD LVCMOS33 } [get_ports servo_pwm_base]
-#set_property -dict { PACKAGE_PIN F6   IOSTANDARD LVCMOS33 } [get_ports servo_pwm_shoulder]
-#set_property -dict { PACKAGE_PIN J2   IOSTANDARD LVCMOS33 } [get_ports servo_pwm_elbow]
-#set_property -dict { PACKAGE_PIN G6   IOSTANDARD LVCMOS33 } [get_ports servo_pwm_gripper]
+set_property -dict { PACKAGE_PIN K1   IOSTANDARD LVCMOS33 } [get_ports servo_pwm_base]
+set_property -dict { PACKAGE_PIN F6   IOSTANDARD LVCMOS33 } [get_ports servo_pwm_shoulder]
+set_property -dict { PACKAGE_PIN J2   IOSTANDARD LVCMOS33 } [get_ports servo_pwm_elbow]
+set_property -dict { PACKAGE_PIN G6   IOSTANDARD LVCMOS33 } [get_ports servo_pwm_gripper]
 
 ## ============================================================================
 ## Debug LEDs (from your schematic: LD0=H17, LD1=K15, LD2=J13, LD3=N14)

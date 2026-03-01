@@ -48,8 +48,13 @@ module vga_controller #(
     localparam H_TOTAL = H_ACTIVE + H_FP + H_SYNC + H_BP;
     localparam V_TOTAL = V_ACTIVE + V_FP + V_SYNC + V_BP;
 
-    reg [9:0] h_counter;
-    reg [9:0] v_counter;
+    reg [9:0] h_counter = 0;
+    reg [9:0] v_counter = 0;
+
+    initial begin
+        hsync = 1'b1;
+        vsync = 1'b1;
+    end
 
     always @(posedge clk_25mhz) begin
         if (!rst_n) begin

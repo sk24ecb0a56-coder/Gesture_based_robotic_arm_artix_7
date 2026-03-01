@@ -70,9 +70,9 @@ module frame_buffer_controller #(
     (* ram_style = "block" *)
     reg [15:0] rgb_buffer_1  [0:FRAME_SMALL-1];
     (* ram_style = "block" *)
-    reg        mask_buffer_0 [0:FRAME_SMALL-1];
+    reg [7:0]  mask_buffer_0 [0:FRAME_SMALL-1];
     (* ram_style = "block" *)
-    reg        mask_buffer_1 [0:FRAME_SMALL-1];
+    reg [7:0]  mask_buffer_1 [0:FRAME_SMALL-1];
 
     // ================================================================
     // Double Buffer Selection
@@ -105,10 +105,10 @@ module frame_buffer_controller #(
         if (write_enable && write_sample) begin
             if (!buf_sel) begin
                 rgb_buffer_1[write_addr_small]  <= write_rgb;
-                mask_buffer_1[write_addr_small] <= write_mask;
+                mask_buffer_1[write_addr_small] <= {7'b0, write_mask};
             end else begin
                 rgb_buffer_0[write_addr_small]  <= write_rgb;
-                mask_buffer_0[write_addr_small] <= write_mask;
+                mask_buffer_0[write_addr_small] <= {7'b0, write_mask};
             end
         end
     end
@@ -130,10 +130,10 @@ module frame_buffer_controller #(
         end else begin
             if (buf_sel) begin
                 read_rgb  <= rgb_buffer_1[read_addr_small];
-                read_mask <= mask_buffer_1[read_addr_small];
+                read_mask <= mask_buffer_1[read_addr_small][0];
             end else begin
                 read_rgb  <= rgb_buffer_0[read_addr_small];
-                read_mask <= mask_buffer_0[read_addr_small];
+                read_mask <= mask_buffer_0[read_addr_small][0];
             end
         end
     end
