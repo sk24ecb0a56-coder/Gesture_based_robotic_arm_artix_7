@@ -1,0 +1,55 @@
+# Vivado/Xilinx Files
+*.jou
+*.log
+*.str
+*.xpr
+*.cache/
+*.hw/
+*.ip_user_files/
+*.runs/
+*.sim/
+*_wrapper.v
+*_wrapper.vhd
+*.xml
+!*.xdc
+.Xil/
+vivado*.jou
+vivado*.log
+*.backup.*
+webtalk*.jou
+webtalk*.log
+
+# Simulation Files
+*.vcd
+*.wdb
+*.wcfg
+*.pb
+
+# Build Artifacts
+*.bit
+*.bin
+*.ltx
+*.mmi
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
